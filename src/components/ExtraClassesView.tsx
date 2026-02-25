@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ExtraClass, DAYS } from '../types';
 import { Card } from './ui/Card';
 import { Modal } from './ui/Modal';
-import { Plus, Clock, MapPin, Trash2, Edit2 } from 'lucide-react';
+import { WeeklyTable } from './WeeklyTable';
+import { Plus, Clock, MapPin, Trash2, Edit2, Download, Maximize2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toPng } from 'html-to-image';
 
 interface ExtraClassesViewProps {
   classes: ExtraClass[];
@@ -14,7 +16,24 @@ interface ExtraClassesViewProps {
 
 export function ExtraClassesView({ classes, onAdd, onUpdate, onDelete }: ExtraClassesViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ExtraClass | null>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const handleExport = async () => {
+    if (tableRef.current) {
+      try {
+        const dataUrl = await toPng(tableRef.current, { quality: 0.95, backgroundColor: '#ffffff' });
+        const link = document.createElement('a');
+        link.download = `lich-hoc-them-${new Date().getTime()}.png`;
+        link.href = dataUrl;
+        link.click();
+      } catch (err) {
+        console.error('Failed to export image', err);
+        alert('Có lỗi xảy ra khi xuất ảnh. Vui lòng thử lại.');
+      }
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,12 +83,21 @@ export function ExtraClassesView({ classes, onAdd, onUpdate, onDelete }: ExtraCl
           <h2 className="text-2xl font-bold text-gray-900">Lịch Học Thêm</h2>
           <p className="text-sm text-gray-500 font-medium">Quản lý các lớp học thêm</p>
         </div>
-        <button
-          onClick={() => { setEditingClass(null); setIsModalOpen(true); }}
-          className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 active:scale-90 transition-transform"
-        >
-          <Plus size={24} />
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsExportModalOpen(true)}
+            className="w-10 h-10 rounded-full bg-white text-gray-600 flex items-center justify-center shadow-sm border border-gray-100 active:scale-90 transition-transform"
+            title="Xuất ảnh TKB"
+          >
+            <Maximize2 size={20} />
+          </button>
+          <button
+            onClick={() => { setEditingClass(null); setIsModalOpen(true); }}
+            className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 active:scale-90 transition-transform"
+          >
+            <Plus size={24} />
+          </button>
+        </div>
       </div>
 
       {classes.length === 0 ? (
@@ -204,6 +232,38 @@ export function ExtraClassesView({ classes, onAdd, onUpdate, onDelete }: ExtraCl
           </div>
         </form>
       </Modal>
+
+      {/* Export Modal */}
+      {isExportModalOpen && (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-gray-900">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shrink-0 shadow-sm z-10">
+            <h3 className="font-bold text-gray-900 text-lg">Xem trước & Xuất ảnh</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700 transition-colors shadow-sm active:scale-95"
+              >
+                <Download size={18} />
+                <span className="hidden sm:inline">Lưu ảnh</span>
+              </button>
+              <button
+                onClick={() => setIsExportModalOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"
+              >
+                <X size={24} />
+              </button>
+            </div>
+          </div>
+          
+          {/* Scrollable Container */}
+          <div className="flex-1 overflow-auto bg-gray-100 p-4 md:p-8">
+             <div className="min-w-min inline-block align-top shadow-2xl rounded-lg overflow-hidden">
+                <WeeklyTable ref={tableRef} classes={classes} />
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
